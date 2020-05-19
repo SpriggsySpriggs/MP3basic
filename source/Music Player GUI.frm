@@ -16,18 +16,15 @@ SUB __UI_LoadForm
 
     __UI_NewID = __UI_NewControl(__UI_Type_Button, "PlayBT", 50, 37, 141, 115, 0)
     __UI_RegisterResult = 0
-    LoadImage Control(__UI_NewID), "play-flat.png"
     Control(__UI_NewID).CanHaveFocus = True
 
     __UI_NewID = __UI_NewControl(__UI_Type_Button, "PauseBT", 50, 37, 198, 115, 0)
     __UI_RegisterResult = 0
-    LoadImage Control(__UI_NewID), "pause.png"
     Control(__UI_NewID).CanHaveFocus = True
     Control(__UI_NewID).Disabled = True
 
     __UI_NewID = __UI_NewControl(__UI_Type_Button, "StopBT", 50, 37, 255, 115, 0)
     __UI_RegisterResult = 0
-    LoadImage Control(__UI_NewID), "Stop1NormalRed.png"
     Control(__UI_NewID).CanHaveFocus = True
     Control(__UI_NewID).Disabled = True
 
@@ -49,7 +46,6 @@ SUB __UI_LoadForm
     __UI_RegisterResult = 0
     SetCaption __UI_NewID, "Open"
     Control(__UI_NewID).CanHaveFocus = True
-    LoadImage Control(__UI_NewID), "open-folder.png"
     __UI_RegisterResult = RegisterKeyCombo("Ctrl+O", __UI_NewID)
 
     __UI_NewID = __UI_NewControl(__UI_Type_Label, "LB2", 27, 21, 364, 65, 0)
@@ -66,12 +62,10 @@ SUB __UI_LoadForm
 
     __UI_NewID = __UI_NewControl(__UI_Type_Button, "BackBT", 50, 37, 84, 115, 0)
     __UI_RegisterResult = 0
-    LoadImage Control(__UI_NewID), "rewind.png"
     Control(__UI_NewID).CanHaveFocus = True
 
     __UI_NewID = __UI_NewControl(__UI_Type_Button, "ForwardBT",  50, 37, 369, 115, 0)
     __UI_RegisterResult = 0
-    LoadImage Control(__UI_NewID), "fast-forward.png"
     Control(__UI_NewID).CanHaveFocus = True
 
     __UI_NewID = __UI_NewControl(__UI_Type_PictureBox, "AlbumArt", 200, 200, 24, 170, 0)
@@ -83,7 +77,6 @@ SUB __UI_LoadForm
 
     __UI_NewID = __UI_NewControl(__UI_Type_Button, "RepeatBT",  50, 37, 312, 115, 0)
     __UI_RegisterResult = 0
-    LoadImage Control(__UI_NewID), "loop.png"
     Control(__UI_NewID).CanHaveFocus = True
 
     __UI_NewID = __UI_NewControl(__UI_Type_Label, "TitleLB", 25, 21, 238, 170, 0)

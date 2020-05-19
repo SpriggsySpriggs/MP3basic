@@ -11,47 +11,7 @@ $EXEICON:'music_note.ico'
 ': https://github.com/FellippeHeitor/InForm
 '-----------------------------------------------------------
 ' Dialog flag constants (use + or OR to use more than 1 flag value)
-CONST OFN_ALLOWMULTISELECT = &H200& '  Allows the user to select more than one file, not recommended!
-CONST OFN_CREATEPROMPT = &H2000& '     Prompts if a file not found should be created(GetOpenFileName only).
-CONST OFN_EXTENSIONDIFFERENT = &H400& 'Allows user to specify file extension other than default extension.
-CONST OFN_FILEMUSTEXIST = &H1000& '    Chechs File name exists(GetOpenFileName only).
-CONST OFN_HIDEREADONLY = &H4& '        Hides read-only checkbox(GetOpenFileName only)
-CONST OFN_NOCHANGEDIR = &H8& '         Restores the current directory to original value if user changed
-CONST OFN_NODEREFERENCELINKS = &H100000& 'Returns path and file name of selected shortcut(.LNK) file instead of file referenced.
-CONST OFN_NONETWORKBUTTON = &H20000& ' Hides and disables the Network button.
-CONST OFN_NOREADONLYRETURN = &H8000& ' Prevents selection of read-only files, or files in read-only subdirectory.
-CONST OFN_NOVALIDATE = &H100& '        Allows invalid file name characters.
-CONST OFN_OVERWRITEPROMPT = &H2& '     Prompts if file already exists(GetSaveFileName only)
-CONST OFN_PATHMUSTEXIST = &H800& '     Checks Path name exists (set with OFN_FILEMUSTEXIST).
-CONST OFN_READONLY = &H1& '            Checks read-only checkbox. Returns if checkbox is checked
-CONST OFN_SHAREAWARE = &H4000& '       Ignores sharing violations in networking
-CONST OFN_SHOWHELP = &H10& '           Shows the help button (useless!)
-'--------------------------------------------------------------------------------------------
-
-DEFINT A-Z
-TYPE FILEDIALOGTYPE
-    lStructSize AS LONG '        For the DLL call
-    hwndOwner AS LONG '          Dialog will hide behind window when not set correctly
-    hInstance AS LONG '          Handle to a module that contains a dialog box template.
-    lpstrFilter AS _OFFSET '     Pointer of the string of file filters
-    lpstrCustFilter AS _OFFSET
-    nMaxCustFilter AS LONG
-    nFilterIndex AS LONG '       One based starting filter index to use when dialog is called
-    lpstrFile AS _OFFSET '       String full of 0's for the selected file name
-    nMaxFile AS LONG '           Maximum length of the string stuffed with 0's minus 1
-    lpstrFileTitle AS _OFFSET '  Same as lpstrFile
-    nMaxFileTitle AS LONG '      Same as nMaxFile
-    lpstrInitialDir AS _OFFSET ' Starting directory
-    lpstrTitle AS _OFFSET '      Dialog title
-    flags AS LONG '              Dialog flags
-    nFileOffset AS INTEGER '     Zero-based offset from path beginning to file name string pointed to by lpstrFile
-    nFileExtension AS INTEGER '  Zero-based offset from path beginning to file extension string pointed to by lpstrFile.
-    lpstrDefExt AS _OFFSET '     Default/selected file extension
-    lCustData AS LONG
-    lpfnHook AS LONG
-    lpTemplateName AS _OFFSET
-END TYPE
-
+'$INCLUDE:'Open-SaveFile.BI'
 DECLARE DYNAMIC LIBRARY "user32"
     FUNCTION LoadIconA%& (BYVAL hInstance%&, BYVAL lpIconName%&)
     FUNCTION SetLayeredWindowAttributes& (BYVAL hwnd AS LONG, BYVAL crKey AS LONG, BYVAL bAlpha AS _UNSIGNED _BYTE, BYVAL dwFlags AS LONG)
@@ -66,32 +26,9 @@ DIM MyHwnd AS LONG
 DIM SHARED WindowVal
 DIM SHARED opacity
 
-DECLARE DYNAMIC LIBRARY "comdlg32" ' Library declarations using _OFFSET types
-    FUNCTION GetOpenFileNameA& (DIALOGPARAMS AS FILEDIALOGTYPE) ' The Open file dialog
-    FUNCTION GetSaveFileNameA& (DIALOGPARAMS AS FILEDIALOGTYPE) ' The Save file dialog
-END DECLARE
 DECLARE DYNAMIC LIBRARY "playmidi32"
     FUNCTION PlayMIDI& (filename AS STRING)
 END DECLARE
-'DECLARE DYNAMIC LIBRARY "WINMM"
-'    FUNCTION mciSendStringA% (lpstrCommand AS STRING, lpstrReturnString AS STRING, BYVAL uReturnLength AS INTEGER, BYVAL hwndCallback AS INTEGER)
-' mciSendStringA function plays media files and returns the following:
-' 0 = command sucessful
-' - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-' lpstrCommand is the MCI command string (and optional flags) to send.
-' lpstrReturnString is a string that holds any return information.
-' uReturnLength is the length of the lpstrReturnString string passed.
-' NOTE: If lpstrCommand given doesn't retun a value then lpstrReturnString
-'       can be empty and uReturnLength can be set to 0.
-' hwndCallback contains a callback window handle (only if the Notify flag used in lpstrCommand)
-'====================================================================
-'FUNCTION mciGetErrorStringA% (BYVAL dwError AS INTEGER, lpstrBuffer AS STRING, BYVAL uLength AS INTEGER)
-' mciGetErrorStringA returns error info if the mciSendStringA failed.
-' dwError is the return value from the mciSendString function.
-' lpstrBuffer string holds the error information returned by the function.
-' uLength is the length of the lpstrBuffer string buffer.
-'====================================================================
-'END DECLARE
 
 ': Controls' IDs: ------------------------------------------------------------------
 DIM SHARED MusicPlayer AS LONG
@@ -124,13 +61,21 @@ SUB __UI_BeforeInit
 END SUB
 
 SUB __UI_OnLoad
+    Control(PlayBT).HelperCanvas = __playflat&
+    Control(PauseBT).HelperCanvas = __pause&
+    Control(StopBT).HelperCanvas = __StopNormalRed
+    Control(OpenBT).HelperCanvas = __openfolder
+    Control(BackBT).HelperCanvas = __rewind
+    Control(ForwardBT).HelperCanvas = __fastforward
+    Control(RepeatBT).HelperCanvas = __loop
     IF COMMAND$ <> "" THEN
         IF INSTR(COMMAND$, ".mp3") OR INSTR(COMMAND$, ".wav") THEN
             Text(SongFileTB) = COMMAND$
             IF _FILEEXISTS(GetAlbumArt$(COMMAND$)) THEN
                 LoadImage Control(AlbumArt), GetAlbumArt$(COMMAND$)
             ELSE
-                LoadImage Control(AlbumArt), "Big_Note.png"
+                'LoadImage Control(AlbumArt), "Big_Note.png"
+                Control(AlbumArt).HelperCanvas = __BigNote
             END IF
             GetSongTags (COMMAND$)
             s& = _SNDOPEN(COMMAND$)
@@ -160,24 +105,6 @@ SUB __UI_OnLoad
 END SUB
 
 SUB __UI_BeforeUpdateDisplay
-    'This event occurs at approximately 30 frames per second.
-    'You can change the update frequency by calling SetFrameRate DesiredRate%
-    'CONST ERROR_ALREADY_EXISTS = &HB7
-
-    'DECLARE DYNAMIC LIBRARY "kernel32"
-    '    FUNCTION CreateMutexA%& (BYVAL lpMutexAttributes%&, BYVAL bInitialOwner&, BYVAL lpName%&)
-    '    FUNCTION GetLastError~& ()
-    'END DECLARE
-    'Window$ = "Music Player v1.000"
-    '_TITLE Window$
-    'DIM t AS STRING
-    't = "Global\" + Window$ + CHR$(0)
-    'IF 0 = CreateMutexA(0, 0, _OFFSET(t)) THEN
-    'END IF
-    'see: http://msdn.microsoft.com/en-us/library/ms682411%28v=vs.85%29
-    'IF ERROR_ALREADY_EXISTS = GetLastError THEN
-    '    SYSTEM
-    'END IF
     MyHwnd = _WINDOWHANDLE 'FindWindow(0, Window$ + CHR$(0))
     hWnd& = MyHwnd
     IF MyHwnd AND _WINDOWHASFOCUS THEN
@@ -198,7 +125,8 @@ SUB __UI_BeforeUpdateDisplay
             IF _FILEEXISTS(GetAlbumArt$(OFile$)) THEN
                 LoadImage Control(AlbumArt), GetAlbumArt$(OFile$)
             ELSE
-                LoadImage Control(AlbumArt), "Big_Note.png"
+                'LoadImage Control(AlbumArt), "Big_Note.png"
+                Control(AlbumArt).HelperCanvas = __BigNote
             END IF
             GetSongTags (OFile$)
             s& = _SNDOPEN(Text(SongFileTB))
@@ -259,13 +187,9 @@ SUB __UI_Click (id AS LONG)
 
         CASE PlayBT
             Control(PlayBT).Disabled = True
-            'IF Text(SongFileTB) <> "Select a file..." AND Caption(SongFileTB) <> "Select a file..." THEN
             IF INSTR(Text(SongFileTB), ".mp3") OR INSTR(Text(SongFileTB), ".wav") THEN
                 _SNDPLAY s&
             END IF
-            'SongTitle$ = Text(SongFileTB)
-            'SongTitle$ = StripDirectory$(SongTitle$)
-            'strip$ = StripDirectory$(Text(SongFileTB))
             Window$ = "Playing - " + SongTitle$ 'strip$
             _TITLE Window$
             Control(PauseBT).Disabled = False
@@ -317,14 +241,12 @@ SUB __UI_Click (id AS LONG)
                 IF _FILEEXISTS(GetAlbumArt$(OFile$)) THEN
                     LoadImage Control(AlbumArt), GetAlbumArt$(OFile$)
                 ELSE
-                    LoadImage Control(AlbumArt), "Big_Note.png"
+                    'LoadImage Control(AlbumArt), "Big_Note.png"
+                    Control(AlbumArt).HelperCanvas = __BigNote
                 END IF
             END IF
             s& = _SNDOPEN(Text(SongFileTB))
             _SNDPLAY (s&)
-            'SongTitle$ = Text(SongFileTB)
-            'SongTitle$ = StripDirectory$(SongTitle$)
-            'strip$ = StripDirectory$(Text(SongFileTB))
             Window$ = "Playing - " + SongTitle$ 'strip$
             _TITLE Window$
             Control(PlayBT).Disabled = True
@@ -508,61 +430,6 @@ END SUB
 SUB __UI_FormResized
 
 END SUB
-FUNCTION GetOpenFileName$ (Title$, InitialDir$, Filter$, FilterIndex, Flags&, hWnd&)
-    '  Title$      - The dialog title.
-    '  InitialDir$ - If this left blank, it will use the directory where the last opened file is
-    '  located. Specify ".\" if you want to always use the current directory.
-    '  Filter$     - File filters separated by pipes (|) in the same format as using VB6 common dialogs.
-    '  FilterIndex - The initial file filter to use. Will be altered by user during the call.
-    '  Flags&      - Dialog flags. Will be altered by the user during the call.
-    '  hWnd&       - Your program's window handle that should be aquired by the FindWindow function.
-    '
-    ' Returns: Blank when cancel is clicked otherwise, the file name selected by the user.
-    ' FilterIndex and Flags& will be changed depending on the user's selections.
-    Title$ = "Select a file" + CHR$(0)
-    DIM OpenCall AS FILEDIALOGTYPE ' Needed for dialog call
-
-    fFilter$ = Filter$
-    FOR R = 1 TO LEN(fFilter$) ' Replace the pipes with character zero
-        IF MID$(fFilter$, R, 1) = "|" THEN MID$(fFilter$, R, 1) = CHR$(0)
-    NEXT R
-    fFilter$ = fFilter$ + CHR$(0)
-
-    lpstrFile$ = STRING$(2048, 0) ' For the returned file name
-    lpstrDefExt$ = STRING$(10, 0) ' Extension will not be added when this is not specified
-    OpenCall.lStructSize = LEN(OpenCall)
-    OpenCall.hwndOwner = hWnd&
-    OpenCall.lpstrFilter = _OFFSET(fFilter$)
-    OpenCall.nFilterIndex = FilterIndex
-    OpenCall.lpstrFile = _OFFSET(lpstrFile$)
-    OpenCall.nMaxFile = LEN(lpstrFile$) - 1
-    OpenCall.lpstrFileTitle = OpenCall.lpstrFile
-    OpenCall.nMaxFileTitle = OpenCall.nMaxFile
-    OpenCall.lpstrInitialDir = _OFFSET(InitialDir$)
-    OpenCall.lpstrTitle = _OFFSET(Title$)
-    OpenCall.lpstrDefExt = _OFFSET(lpstrDefExt$)
-    OpenCall.flags = Flags&
-
-    Result = GetOpenFileNameA&(OpenCall) '            Do Open File dialog call!
-
-    IF Result THEN ' Trim the remaining zeros
-        GetOpenFileName$ = LEFT$(lpstrFile$, INSTR(lpstrFile$, CHR$(0)) - 1)
-        Flags& = OpenCall.flags
-        FilterIndex = OpenCall.nFilterIndex
-    END IF
-END FUNCTION
-'FUNCTION ReplaceStringItem$ (text$, old$, new$)
-'    DO
-'        find = INSTR(start + 1, text$, old$) 'find location of a word in text
-'        IF find THEN
-'            first$ = LEFT$(text$, find - 1) 'text before word including spaces
-'            last$ = RIGHT$(text$, LEN(text$) - (find + LEN(old$) - 1)) 'text after word
-'            text$ = first$ + new$ + last$
-'        END IF
-'        start = find
-'    LOOP WHILE find
-'    ReplaceStringItem$ = text$
-'END FUNCTION
 FUNCTION GetAlbumArt$ (OFile$)
     DO
         find = INSTR(find + 1, OFile$, "\")
@@ -616,23 +483,18 @@ SUB GetSongTags (OFile$)
     GET #g%, position, Year
     CLOSE #g%
     SongTitle$ = Songname
-    'Artist$ = Artist
     Caption(TitleLB) = "Title: " + (Songname)
     Caption(ArtistLB) = "Artist: " + (Artist)
     Caption(AlbumLB) = "Album: " + (Album)
     Caption(YearLB) = "Year: " + (Year)
-    'a = _SHELLHIDE("songTags.exe " + CHR$(34) + OFile$ + CHR$(34))
-    'IF a = 1 THEN
-    'f% = FREEFILE
-    'OPEN "songinfo.txt" FOR BINARY AS #f%
-    'LINE INPUT #f%, Songname$
-    'Caption(TitleLB) = "Title: " + Songname$
-    'LINE INPUT #f%, Artist$
-    'Caption(ArtistLB) = "Artist: " + Artist$
-    'LINE INPUT #f%, Album$
-    'Caption(AlbumLB) = "Album: " + Album$
-    'LINE INPUT #f%, Year$
-    'Caption(YearLB) = "Year: " + Year$
-    'CLOSE #f%
-    'END IF
 END SUB
+'$INCLUDE:'OpenFile.BM'
+'$INCLUDE:'Replace.BM'
+'$INCLUDE:'Big_Note.png.MEM'
+'$INCLUDE:'Stop1NormalRed.png.MEM'
+'$INCLUDE:'play-flat.png.MEM'
+'$INCLUDE:'pause.png.MEM'
+'$INCLUDE:'rewind.png.MEM'
+'$INCLUDE:'fast-forward.png.MEM'
+'$INCLUDE:'loop.png.MEM'
+'$INCLUDE:'open-folder.png.MEM'
